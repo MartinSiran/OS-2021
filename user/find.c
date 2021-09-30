@@ -3,6 +3,9 @@
 #include "user/user.h"
 #include "kernel/fs.h"
 
+// function takes string `path` and parses file name from it
+// path: string containing path
+// returns: substring of `path`, which is file name
 char*
 getname(char *path)
 {
@@ -15,6 +18,9 @@ getname(char *path)
   return p++;
 }
 
+// function takes string `path` and prints paths to files with same name as argument `fname` (also searches in subdirectories)
+// path: string containing path
+// fname: file name
 void
 find(char* path, char* fname)
 {
