@@ -5,7 +5,7 @@
 int
 main(int argc, char *argv[])
 {
-  if(argc != 2){
+  if(argc != 2 || (atoi(argv[1]) == 0 && strcmp(argv[1], "0") != 0)){
     fprintf(2, "usage: sleep <ticks>\n");
     exit(-1);
   }
