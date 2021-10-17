@@ -1,4 +1,9 @@
-fork - pid could be set to myproc()->read_page->pid
+1. fork - pid could be set to myproc()->read_page->pid
 system calls with int return value could set to myproc()->read_page->value
 no need to change those values
+
+2. page 0 - program code and data
+   page 1 - guard page
+   page 2 - stack
+   3rd page from end - USYSCALL page   
  
