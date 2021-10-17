@@ -75,12 +75,44 @@ sys_sleep(void)
   return 0;
 }
 
-
+// function to check which pages were accessed
+// start: virtual address of first page to check
+// npages: number of pages to check
+// bitmask_user_address: user address of result
 #ifdef LAB_PGTBL
 int
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
+  uint64 start;
+  int npages;
+  uint64 bitmask_user_address;
+
+  uint64 bitmask_kernel = 0;
+
+  if(argaddr(0, &start) < 0 || start >= MAXVA)
+    return -1;
+  if(argint(1, &npages) < 0 || npages > 512)
+    return -1;
+  if(argaddr(2, &bitmask_user_address) < 0)
+    return -1;
+
+  struct proc *p;
+  if((p = myproc()) == 0){
+    return -1;
+  }
+
+  for(int i = 0; i < npages; i++){
+    pte_t *pte = walk(p->pagetable, start, 0);
+    if(pte && (*pte & PTE_A)){
+      bitmask_kernel |= 1 << i; // put 1 on actual position of iteration (i) to bitmask_kernel
+      *pte &= ~PTE_A; // put 0 to PTE_A position, other bits not changed
+    }
+    start += PGSIZE;
+  }
+
+  if(copyout(p->pagetable, bitmask_user_address, (char*) &bitmask_kernel, (npages+7)/8) == -1){ // last argument -> size rounded to bytes
+    return -1;
+  }
   return 0;
 }
 #endif
