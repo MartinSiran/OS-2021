@@ -117,6 +117,7 @@ printf(char *fmt, ...)
 void
 panic(char *s)
 {
+  backtrace();
   pr.locking = 0;
   printf("panic: ");
   printf(s);
@@ -131,4 +132,18 @@ printfinit(void)
 {
   initlock(&pr.lock, "pr");
   pr.locking = 1;
+}
+
+
+// print the return address of functions from the stack
+void
+backtrace()
+{
+  uint64 fp = r_fp();
+
+  printf("backtrace:\n");
+  while(PGROUNDUP(fp) > fp && PGROUNDDOWN(fp) < fp){ // check if addr of fp is valid
+    printf("%p\n", *((uint64*) (fp - 8))); // fp - 8: return address of function
+    fp = *((uint64*) (fp - 16)); // fp - 16: address of previous fp on the stack
+  }
 }
