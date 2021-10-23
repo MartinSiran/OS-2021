@@ -1,0 +1,12 @@
+1. first argument(f(8)+1) - a1, second argument (13) - a2
+2. addr of f() call - 22, addr of g() call - 12 
+3. addr of printf - 628 
+4. value of ra after jalr to printf - addr of first instrucion of printf (628)
+5. outcome - HE110 World
+6. value - 1, The compiler doesn't analyse the format string and 
+  determine that an integer argument is missing. The fact that 
+  you are missing an argument is a semantic issue that only appears 
+  at runtime. The printf function will assume that you have 
+  supplied the argument and go looking for it on the stack. 
+  It will pick up whatever happens to be on there.
+  https://stackoverflow.com/questions/437816/behaviour-of-printf-when-printing-a-d-without-supplying-variable-name 
