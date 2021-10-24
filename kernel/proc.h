@@ -105,4 +105,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int alarm_interval;          // Amount of ticks for sys_sigalarm
+  uint64 alarm_handler;        // Addr of alarm handler (func) for sys_sigalarm, -1 when no handler specified
+  int tick_counter;            // Tick counter for sys_sigalarm
+  int alarm_running;           // Switch for sys_sigalarm, 1 when alarm handling is proccessed, othervise 0
+  struct trapframe *saved_regs; // Saved register state for sys_sigalarm, restore trapframe state before alarm handling
 };
