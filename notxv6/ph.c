@@ -13,6 +13,8 @@ struct entry {
   int value;
   struct entry *next;
 };
+// declare variable 'lock' as array of pthread_mutex_t locks
+pthread_mutex_t lock[NBUCKET];
 struct entry *table[NBUCKET];
 int keys[NKEYS];
 int nthread = 1;
@@ -40,6 +42,8 @@ static
 void put(int key, int value)
 {
   int i = key % NBUCKET;
+  // lock only hash table on index i
+  pthread_mutex_lock(&lock[i]);
 
   // is the key already present?
   struct entry *e = 0;
@@ -55,6 +59,8 @@ void put(int key, int value)
     insert(key, value, &table[i], table[i]);
   }
 
+  // unlock table after operation
+  pthread_mutex_unlock(&lock[i]);
 }
 
 static struct entry*
@@ -110,6 +116,9 @@ main(int argc, char *argv[])
     fprintf(stderr, "Usage: %s nthreads\n", argv[0]);
     exit(-1);
   }
+  // initialize all locks in array
+  for (int i = 0; i < NBUCKET; i++)
+    pthread_mutex_init(&lock[i], NULL);
   nthread = atoi(argv[1]);
   tha = malloc(sizeof(pthread_t) * nthread);
   srandom(0);
