@@ -283,6 +283,18 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+// recursively browse symlinks until file is found within depth
+struct inode*
+find_target(struct inode *ip, int depth){
+  if(depth == 0)
+    return 0;
+  else if(ip->type != T_SYMLINK)
+    return ip;
+  if((ip = namei(ip->path_to_target)) == 0)
+    return 0;
+  return find_target(ip, depth - 1);
+}
+
 uint64
 sys_open(void)
 {
@@ -307,6 +319,14 @@ sys_open(void)
     if((ip = namei(path)) == 0){
       end_op();
       return -1;
+    }
+    // if O_NOFOLLOW flag is active, don't try to find target of symlink
+    if(ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)){
+      ip = find_target(ip, 10);
+      if(ip == 0){
+        end_op();
+        return -1;
+      }
     }
     ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
@@ -482,5 +502,36 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+// create symbolic link between path and target
+uint64
+sys_symlink(void)
+{
+  char target[MAXPATH], path[MAXPATH];
+
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0){
+    return -1;
+  }
+  begin_op();
+  struct inode *ip;
+
+
+  // Create inode type symlink
+  ip = create(path, T_SYMLINK, 0, 0);
+  if(ip == 0){
+    end_op();
+    return -1;
+  }
+
+  // first clear path_to_target, then set it to actual target
+  memset((void*)ip->path_to_target, '\0', MAXPATH);
+  strncpy(ip->path_to_target, target, strlen(target));
+
+  iupdate(ip);
+  iunlockput(ip);
+
+  end_op();
   return 0;
 }

@@ -27,6 +27,8 @@ struct inode {
   short nlink;
   uint size;
   uint addrs[NDIRECT+2];
+
+  char path_to_target[128];  // path to target, if this is symlink (MAXPATH 128)
 };
 
 // map major device number to device functions.
