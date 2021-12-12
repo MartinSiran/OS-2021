@@ -3,8 +3,12 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "spinlock.h"
+#include "sleeplock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fs.h"
+#include "file.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -303,6 +307,27 @@ fork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  // duplicate vma array of structs + duplicate correspondent pages
+  for(i = 0; i < VMA_NUM; i++){
+    if(p->vma[i].f){
+      np->vma[i] = p->vma[i];
+      filedup(np->vma[i].f);
+      uint64 pa;
+      char *mem;
+      for (uint64 va = PGROUNDDOWN(p->vma->addr); va < p->vma->addr + p->vma->length; va += PGSIZE) {
+        if ((pa = walkaddr(np->pagetable, va))) {
+          if((mem = kalloc()) == 0)
+            return -1;
+          memmove((void*)mem, (void*)pa, PGSIZE);
+          if(mappages(np->pagetable, va, PGSIZE, (uint64)mem, PTE_FLAGS(PA2PTE(pa))) != 0){
+            kfree(mem);
+            return -1;
+          }
+        }
+      }
+    }
+  }
+
   pid = np->pid;
 
   release(&np->lock);
@@ -350,6 +375,22 @@ exit(int status)
       struct file *f = p->ofile[fd];
       fileclose(f);
       p->ofile[fd] = 0;
+    }
+  }
+
+  // deallocate vma pages + close files
+  struct vma *vma;
+  for(int i = 0; i < VMA_NUM; i++){
+    vma = p->vma + i;
+    if(vma->f){
+      uint64 pa;
+      for(uint64 va = PGROUNDDOWN(vma->addr); va < vma->addr + vma->length; va += PGSIZE){
+        if ((pa = walkaddr(p->pagetable, va))) {
+          uvmunmap(p->pagetable, va, 1, 0);
+        }
+      }
+      fileclose(vma->f);
+      vma->f = 0;
     }
   }
 

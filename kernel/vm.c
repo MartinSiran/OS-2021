@@ -5,6 +5,12 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "file.h"
+#include "fcntl.h"
+#include "proc.h"
+
 
 /*
  * the kernel's page table.
@@ -431,4 +437,43 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+// find available vma
+struct vma *
+find_empty_vma(struct proc *p)
+{
+  for(int i = 0; i < VMA_NUM; i++){
+    if(p->vma[i].f == 0){
+      return p->vma + i;
+    }
+  }
+  return 0;
+};
+
+// find address to map a file
+uint64
+alloc_mmap(struct proc *p)
+{
+  uint64 start = MMAP;
+  for(int i = 0; i < VMA_NUM; i++){
+    if(p->vma[i].f != 0){
+      if(p->vma[i].addr + p->vma[i].length > start)
+        start = p->vma[i].addr + p->vma[i].length;
+    }
+  }
+  return start;
+}
+
+// find vma with address of addr
+struct vma *
+search_vma(struct proc *p, uint64 addr)
+{
+  for(int i = 0; i < VMA_NUM; i++){
+    if(p->vma[i].f != 0){
+      if(addr >= p->vma[i].addr && addr < p->vma[i].addr + p->vma[i].length)
+        return p->vma + i;
+    }
+  }
+  return 0;
 }
