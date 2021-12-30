@@ -95,26 +95,62 @@ e1000_init(uint32 *xregs)
 int
 e1000_transmit(struct mbuf *m)
 {
-  //
-  // Your code here.
-  //
   // the mbuf contains an ethernet frame; program it into
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
-  //
   
+  acquire(&e1000_lock);
+  uint32 tail_index = regs[E1000_TDT]; // get current tail index
+
+  if((tx_ring[tail_index].status & E1000_TXD_STAT_DD) == 0) // ring overflow
+    return -1;
+
+  if(tx_mbufs[tail_index]) // free mbuf if exists on tail index
+    mbuffree(tx_mbufs[tail_index]);
+
+  // update descriptor
+  tx_ring[tail_index].addr = (uint64)m->head;
+  tx_ring[tail_index].length = (uint64)m->len;
+  tx_ring[tail_index].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
+  
+  tx_mbufs[tail_index] = m;
+
+  regs[E1000_TDT] = (tail_index + 1) % TX_RING_SIZE; // update tail index
+  release(&e1000_lock);
   return 0;
 }
 
 static void
 e1000_recv(void)
 {
-  //
-  // Your code here.
-  //
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
-  //
+
+  acquire(&e1000_lock);
+  uint32 tail_index = (regs[E1000_RDT] + 1) % RX_RING_SIZE; // get current tail index
+
+  while(rx_ring[tail_index].status & E1000_RXD_STAT_DD){ // new packet available    
+    struct mbuf *m = rx_mbufs[tail_index]; // store mbuf to send
+    m->len = rx_ring[tail_index].length;
+
+    rx_mbufs[tail_index] = mbufalloc(0);
+    if(!rx_mbufs[tail_index]) // cannot alloc buf
+      return;
+
+    // update descriptor
+    rx_ring[tail_index].addr = (uint64)rx_mbufs[tail_index]->head;
+    rx_ring[tail_index].status = 0;
+
+    regs[E1000_RDT] = tail_index; // update tail index
+
+    release(&e1000_lock);
+    
+    net_rx(m); // deliver stored mbuf to protocol layer
+
+    acquire(&e1000_lock);
+    tail_index = (regs[E1000_RDT] + 1) % RX_RING_SIZE; // get new tail index
+  }
+  release(&e1000_lock);
 }
 
 void
